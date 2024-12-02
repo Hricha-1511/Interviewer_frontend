@@ -1,4 +1,4 @@
 streamlit
-pyPDF2
-speechrecognition
-pyaudio
+PyPDF2
+SpeechRecognition
+streamlit-microphone
