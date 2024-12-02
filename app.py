@@ -1,7 +1,8 @@
 import streamlit as st
-import PyPDF2
+from streamlit_webrtc import webrtc_streamer, WebRtcMode
 import speech_recognition as sr
-from st_custom_component import microphone_input
+import tempfile
+import PyPDF2
 
 # Function to extract text from PDF
 def extract_text_from_pdf(pdf_file):
@@ -11,20 +12,18 @@ def extract_text_from_pdf(pdf_file):
         text += page.extract_text()
     return text
 
-# Function to process recorded audio
-def process_audio(audio_data):
+# Function to process audio data from microphone
+def process_audio_from_file(file_path):
     recognizer = sr.Recognizer()
-    try:
-        with sr.AudioFile(audio_data) as source:
-            audio_content = recognizer.record(source)
-            return recognizer.recognize_google(audio_content)
-    except sr.UnknownValueError:
-        st.error("Could not understand the audio. Please try again.")
-    except sr.RequestError as e:
-        st.error(f"Speech Recognition service error: {e}")
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
-    return ""
+    with sr.AudioFile(file_path) as source:
+        audio_data = recognizer.record(source)
+        try:
+            return recognizer.recognize_google(audio_data)
+        except sr.UnknownValueError:
+            st.error("Could not understand the audio. Please try again.")
+        except sr.RequestError as e:
+            st.error(f"Speech Recognition service error: {e}")
+        return ""
 
 # Streamlit App
 st.title("Job Application Assistant")
@@ -64,13 +63,19 @@ if "chat_ready" in st.session_state and st.session_state["chat_ready"]:
     st.header("Chatbot Interface")
     user_input = st.text_input("Type your message here:")
 
-    # Microphone Integration
-    st.subheader("Record via Mic")
-    audio_file = microphone_input(label="Speak Now")
+    # Microphone Input
+    st.subheader("Record via Microphone")
+    webrtc_ctx = webrtc_streamer(key="speech-rec", mode=WebRtcMode.SENDRECV)
 
-    if st.button("Process Mic Input"):
-        if audio_file:
-            text_output = process_audio(audio_file)
+    if webrtc_ctx.audio_receiver:
+        audio_frames = webrtc_ctx.audio_receiver.get_frames()
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio:
+            for frame in audio_frames:
+                temp_audio.write(frame.to_ndarray())
+            temp_audio_path = temp_audio.name
+
+        if st.button("Process Mic Input"):
+            text_output = process_audio_from_file(temp_audio_path)
             if text_output:
                 st.success(f"Recognized Speech: {text_output}")
 
