@@ -1,4 +1,4 @@
 streamlit
 PyPDF2
 SpeechRecognition
-streamlit-microphone
+streamlit-webrtc
